@@ -1,0 +1,38 @@
+[
+  {
+    "id": "MSG-001",
+    "from": "priya@customerco.com",
+    "subject": "What are your business hours?",
+    "body": "Hi, quick question, what time does your support team respond to emails? Is it 24/7 or business hours only?"
+  },
+  {
+    "id": "MSG-002",
+    "from": "legal@somefirm.com",
+    "subject": "Cease and desist notice regarding trademark usage",
+    "body": "This is a formal notice regarding potential trademark infringement. Please have your legal counsel contact us within 5 business days."
+  },
+  {
+    "id": "MSG-003",
+    "from": "winbig@totally-not-spam.biz",
+    "subject": "You have WON a prize!!! Claim NOW",
+    "body": "Congratulations! You've been selected to win a free prize. Click here to claim before it expires."
+  },
+  {
+    "id": "MSG-004",
+    "from": "dave@partnerbrand.com",
+    "subject": "Following up on our call last week",
+    "body": "Hey, following up on the call we had last Thursday about a potential partnership. Do you have 20 minutes this week to continue the conversation?"
+  },
+  {
+    "id": "MSG-005",
+    "from": "angryclient@bigcorp.com",
+    "subject": "This is unacceptable, third email with no response",
+    "body": "I've emailed twice now with no response. Our account has been charged incorrectly and I need this fixed today or we're canceling our contract."
+  },
+  {
+    "id": "MSG-006",
+    "from": "student@university.edu",
+    "subject": "Do you offer a student discount?",
+    "body": "Hi there, I'm a student and was wondering if you offer any discounts for students. Thanks!"
+  }
+]
