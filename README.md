@@ -26,6 +26,12 @@
 
 <br>
 
+<h2>See it in action</h2>
+
+<p align="center"><img src="demo/demo.gif" alt="Terminal recording of Email Triage Agent running on Google Gemini" width="100%"></p>
+
+<p align="center"><sub>Recorded from a real run on Google Gemini (<code>gemini-3.1-flash-lite</code>) on 12 November 2026. Nothing is edited or scripted. Only the waiting time while the model thinks is shortened. <a href="demo/demo.mp4">Download the MP4</a>.</sub></p>
+
 <h2>The problem</h2>
 
 <p>A shared inbox mixes questions answered a hundred times before, messages that need a careful human reply, the occasional legal or angry email that needs attention today, and a lot of noise.</p>
@@ -112,19 +118,74 @@ python process_inbox.py
 
 <pre>
 email-triage-agent/
-  .env.example        # copy to .env and add your key
-  case_study.md       # longer write-up of the design
-  process_inbox.py    # triages the whole inbox and writes the log
+  .env.example                                           # copy to .env and add your key
+  case_study.md                                          # longer write-up of the design
+  process_inbox.py                                       # triages the whole inbox and writes the log
   README.md
-  requirements.txt    # dependencies
+  requirements.txt                                       # dependencies
+  .git/
+    COMMIT_EDITMSG
+    config
+    description
+    HEAD
+    hooks/applypatch-msg.sample
+    hooks/commit-msg.sample
+    hooks/fsmonitor-watchman.sample
+    hooks/post-update.sample
+    hooks/pre-applypatch.sample
+    hooks/pre-commit.sample
+    hooks/pre-merge-commit.sample
+    hooks/pre-push.sample
+    hooks/pre-rebase.sample
+    hooks/pre-receive.sample
+    hooks/prepare-commit-msg.sample
+    hooks/push-to-checkout.sample
+    hooks/sendemail-validate.sample
+    hooks/update.sample
+    index
+    info/exclude
+    logs/HEAD
+    logs/refs/heads/main
+    logs/refs/remotes/origin/main
+    objects/0d/19a37d674a332b9dba9f34ec54f3144a81a21f
+    objects/2a/46591d6d09a5886c095972b3f931afb88353cb
+    objects/34/a1aaf361b1a01235b510ee8101c12a9e9c0bf6
+    objects/36/2336d2b8e655e7d6370a11541e836b4d1d0f37
+    objects/40/51332f1897fe6e11f1f5873f02a861a381a96a
+    objects/55/ec08e05c3fdf6e24797e0842566b0d1b2d8acf
+    objects/6a/5a878cd51213838455fa0fd325eb8af6d033bb
+    objects/78/998da0758f803a8b7d9b492206632524003f81
+    objects/7a/3a4f0ab20b8170a7b714479283340f5fe09e10
+    objects/81/5e21da7ab05f5b4c375f1b9a44f87fc7038019
+    objects/82/e9d1be3967529d71326b4776074e05a5f857a5
+    objects/8a/e3924659b56cb38b3fdf140fd15e3414504e7e
+    objects/8e/2735a773baa4ce125dc92d2e99c36cb2807725
+    objects/a2/667477f906e25e4d46862b73a0cf1d10163a78
+    objects/b4/0c906a6641293e3dad454daf7b665b5a4d2c01
+    objects/bb/1d0d20270c6b562a687dd6c5e21f3c4d7ba090
+    objects/c4/0c1adf59a8996b3acd6db2116e6af35a09e938
+    objects/c5/4aeb32cf364cf433dfb7c8ce58583bc231b3a2
+    objects/c5/97c23fa30e7a1e2dfac8278bb520f879e325c9
+    objects/d7/830614cbf458ef390333b9b3946a011ea03d3b
+    objects/d9/ffe3cd2f0d4bd4ffa4f6686b80b1f95b570f4f
+    objects/de/746f20e8d94bc4bca3a762ef31b38beac8dfce
+    objects/de/878e51889545852ecc85a58bc263c0fbe8d372
+    objects/e5/6d0464232e3f00c54b6317bcda0a87126ef783
+    objects/e6/9de29bb2d1d6434b8b29ae775ad8c2e48c5391
+    objects/fd/623b2a03c73a229749cd340ea80ef4281c2ff1
+    refs/heads/main
+    refs/remotes/origin/main
   agent/
-    llm.py            # picks the model from LLM_MODEL
-    tools.py          # FAQ lookup, draft and Slack alert
-    triage.py         # the classify and route pipeline
+    llm.py                                               # picks the model from LLM_MODEL
+    tools.py                                             # FAQ lookup, draft and Slack alert
+    triage.py                                            # the classify and route pipeline
   data/
-    faq.json          # answers the routine bucket draws from
-    inbox.json        # sample inbox
-  tests/              # pytest suite, runs without any API key
+    faq.json                                             # answers the routine bucket draws from
+    inbox.json                                           # sample inbox
+  demo/
+    demo.gif
+    demo.mp4
+  tests/                                                 # pytest suite, runs without any API key
 </pre>
 
 <h2>Built with</h2>
