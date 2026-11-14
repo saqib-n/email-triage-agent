@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email Triage Agent</title>
+<style>
+  :root {
+    --bg: #f3f5f8; --surface: #ffffff; --line: #e3e7ed; --line-2: #eef1f5;
+    --text: #1d2433; --muted: #66708a; --faint: #98a1b5;
+    --brand: #3b5bdb; --brand-soft: #edf1ff;
+    --routine: #1f8a4c; --routine-bg: #e5f5ec;
+    --urgent: #d0342c; --urgent-bg: #fdecea;
+    --review: #b26a00; --review-bg: #fff4dc;
+    --spam: #5f6675; --spam-bg: #eef0f3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; cursor: pointer; }
+
+  .topbar { height: 60px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 18px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .logo { display: flex; align-items: center; gap: 10px; width: 200px; font-weight: 650; font-size: 16px; }
+  .logo .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, #3b5bdb, #7048e8); display: grid; place-items: center; }
+  .search { flex: 1; max-width: 460px; height: 38px; background: var(--bg); border-radius: 10px; display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--faint); }
+  .spacer { flex: 1; }
+  .model { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+  .model i { width: 7px; height: 7px; border-radius: 50%; background: var(--routine); }
+  .btn { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 9px; padding: 8px 14px; font-weight: 550; white-space: nowrap; }
+  .btn:hover { border-color: #c9d0dc; }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
+  .btn.primary:hover { background: #324fc4; }
+  .btn:disabled { opacity: .55; cursor: default; }
+
+  .progress { height: 3px; background: transparent; flex: none; }
+  .progress div { height: 100%; width: 0; background: var(--brand); transition: width .4s ease; }
+
+  .main { flex: 1; display: flex; min-height: 0; }
+  .sidebar { width: 236px; flex: none; padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .folder { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 9px; color: var(--text); background: none; border: 0; text-align: left; width: 100%; }
+  .folder:hover { background: #e8ecf2; }
+  .folder.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+  .folder .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .folder .n { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 600; min-width: 18px; text-align: right; }
+  .folder.bump .n { animation: bump .5s ease; }
+  @keyframes bump { 40% { transform: scale(1.5); color: var(--brand); } }
+  .side-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); padding: 16px 12px 6px; font-weight: 600; }
+  .rule { font-size: 12.5px; color: var(--muted); padding: 4px 12px 8px; }
+  .rule b { color: var(--text); font-weight: 600; display: block; font-size: 12.5px; }
+
+  .list { width: 420px; flex: none; background: var(--surface); border-left: 1px solid var(--line); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .list-head { padding: 14px 18px 10px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; justify-content: space-between; }
+  .list-head h2 { margin: 0; font-size: 17px; }
+  .list-head span { color: var(--muted); font-size: 12.5px; }
+  .rows { flex: 1; overflow-y: auto; }
+  .mail { display: grid; grid-template-columns: 36px 1fr auto; gap: 4px 12px; padding: 12px 18px; border-bottom: 1px solid var(--line-2); cursor: pointer; position: relative; transition: background .2s; }
+  .mail:hover { background: #f8f9fc; }
+  .mail.selected { background: var(--brand-soft); }
+  .mail.selected::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--brand); }
+  .mail .av { grid-row: span 3; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 650; color: #fff; font-size: 14px; }
+  .mail .from { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mail.done .from { font-weight: 500; }
+  .mail .time { font-size: 12px; color: var(--muted); }
+  .mail .subj { grid-column: 2 / 4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+  .mail .snip { grid-column: 2 / 3; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mail .state { grid-column: 3 / 4; justify-self: end; }
+  .label { font-size: 11.5px; font-weight: 650; padding: 2px 8px; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; animation: in .3s ease; }
+  @keyframes in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  .label.routine { color: var(--routine); background: var(--routine-bg); }
+  .label.urgent { color: var(--urgent); background: var(--urgent-bg); }
+  .label.needs_human { color: var(--review); background: var(--review-bg); }
+  .label.spam { color: var(--spam); background: var(--spam-bg); }
+  .label.wait { color: var(--faint); background: transparent; font-weight: 500; }
+  .label.work { color: var(--brand); background: var(--brand-soft); }
+  .spin { width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: rot .7s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .mail.working { background: #f6f8ff; }
+
+  .reader { flex: 1; min-width: 0; overflow-y: auto; padding: 22px 28px 40px; }
+  .placeholder { height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); }
+  .placeholder h3 { color: var(--text); margin: 14px 0 6px; font-size: 18px; }
+  .placeholder p { margin: 0 auto; max-width: 380px; }
+  .msg-subject { font-size: 21px; font-weight: 650; margin: 0 0 14px; letter-spacing: -.01em; }
+  .msg-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .msg-meta .av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 650; }
+  .msg-meta b { display: block; }
+  .msg-meta span { color: var(--muted); font-size: 12.5px; }
+  .msg-body { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; white-space: pre-wrap; font-size: 14.5px; }
+
+  .decision { margin-top: 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); overflow: hidden; animation: in .35s ease; }
+  .decision-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line-2); }
+  .decision-head .t { font-weight: 650; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .decision-head .secs { margin-left: auto; color: var(--faint); font-size: 12px; }
+  .decision.routine { border-color: #bfe3cd; } .decision.routine .decision-head { background: var(--routine-bg); }
+  .decision.urgent { border-color: #f4c1bc; } .decision.urgent .decision-head { background: var(--urgent-bg); }
+  .decision.needs_human { border-color: #f0d79c; } .decision.needs_human .decision-head { background: var(--review-bg); }
+  .decision.spam .decision-head { background: var(--spam-bg); }
+  .dl { display: grid; grid-template-columns: 92px 1fr; gap: 8px 14px; padding: 14px 16px; }
+  .dl dt { color: var(--muted); font-size: 12.5px; padding-top: 1px; }
+  .dl dd { margin: 0; }
+  .draft { margin: 0 16px 16px; border: 1px dashed #c9d0dc; border-radius: 10px; padding: 12px 14px; background: #fafbfd; }
+  .draft .k { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .draft .body { white-space: pre-wrap; }
+  .draft .acts { display: flex; gap: 8px; margin-top: 12px; }
+  .thinking { margin-top: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 16px; display: flex; gap: 12px; align-items: center; color: var(--brand); animation: in .3s ease; }
+  .thinking .spin { width: 16px; height: 16px; }
+  .err { margin-top: 18px; border: 1px solid #f4c1bc; background: var(--urgent-bg); color: var(--urgent); border-radius: 12px; padding: 12px 16px; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px); background: #1d2433; color: #fff; padding: 11px 18px; border-radius: 10px; font-size: 13.5px; opacity: 0; transition: all .3s; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,.2); max-width: 90vw; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(20,26,40,.35); display: none; align-items: center; justify-content: center; padding: 16px; }
+  .modal-bg.open { display: flex; }
+  .modal { width: 520px; max-width: 100%; background: var(--surface); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.25); overflow: hidden; }
+  .modal h3 { margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .modal label { display: block; padding: 10px 18px 0; font-size: 12px; color: var(--muted); }
+  .modal input, .modal textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font: inherit; margin-top: 4px; color: var(--text); }
+  .modal textarea { height: 130px; resize: vertical; }
+  .modal .acts { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 18px; }
+
+  @media (max-width: 1100px) { .sidebar { width: 190px; } .rule { display: none; } .list { width: 340px; } }
+  @media (max-width: 820px) {
+    body { overflow: auto; }
+    .main { flex-direction: column; }
+    .sidebar { width: auto; flex-direction: row; flex-wrap: wrap; padding: 10px 16px; }
+    .folder { width: auto; }
+    .side-title, .rule { display: none; }
+    .list { width: auto; border: 0; border-top: 1px solid var(--line); max-height: 420px; }
+    .reader { padding: 18px 16px 40px; }
+    .search, .logo span { display: none; }
+    .logo { width: auto; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo"><div class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M3 6.5A2.5 2.5 0 015.5 4h13A2.5 2.5 0 0121 6.5v11a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 17.5zm2.3-.5l6.7 5.2L18.7 6zM19 8.1l-6.4 5a1 1 0 01-1.2 0L5 8.1v9.4c0 .3.2.5.5.5h13c.3 0 .5-.2.5-.5z"/></svg></div><span>Support inbox</span></div>
+  <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 104.5 10l4.8 4.8 1.4-1.4-4.8-4.8A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>Search mail</div>
+  <div class="spacer"></div>
+  <span class="model"><i></i><span id="model">model</span></span>
+  <button class="btn" id="compose" type="button">Write a test email</button>
+  <button class="btn primary" id="run" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Triage inbox</button>
+</header>
+<div class="progress"><div id="bar"></div></div>
+
+<div class="main">
+  <nav class="sidebar" id="folders">
+    <button class="folder active" data-f="all"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1zm1 9v5h14v-5h-4a3 3 0 01-6 0zm0-2h5.5l.5 1a1 1 0 002 0l.5-1H19V6H5z"/></svg>Inbox<span class="n" data-n="all">0</span></button>
+    <button class="folder" data-f="routine"><span class="sw" style="background:var(--routine)"></span>Auto-answered<span class="n" data-n="routine">0</span></button>
+    <button class="folder" data-f="urgent"><span class="sw" style="background:var(--urgent)"></span>Urgent<span class="n" data-n="urgent">0</span></button>
+    <button class="folder" data-f="needs_human"><span class="sw" style="background:var(--review)"></span>Needs review<span class="n" data-n="needs_human">0</span></button>
+    <button class="folder" data-f="spam"><span class="sw" style="background:var(--spam)"></span>Spam<span class="n" data-n="spam">0</span></button>
+
+    <div class="side-title">How the agent decides</div>
+    <div class="rule"><b>Auto-answered</b>Common question with an answer in the FAQ. Reply drafted from the FAQ.</div>
+    <div class="rule"><b>Urgent</b>Legal, angry or about to cancel. A person is alerted, the agent never replies.</div>
+    <div class="rule"><b>Needs review</b>Needs judgment. The agent drafts, a person decides.</div>
+    <div class="rule"><b>Spam</b>Archived, no reply.</div>
+  </nav>
+
+  <section class="list">
+    <div class="list-head"><h2 id="list-title">Inbox</h2><span id="list-sub">loading...</span></div>
+    <div class="rows" id="rows"></div>
+  </section>
+
+  <section class="reader" id="reader">
+    <div class="placeholder"><div>
+      <svg width="54" height="54" viewBox="0 0 24 24" fill="#c3cad8"><path d="M3 6.5A2.5 2.5 0 015.5 4h13A2.5 2.5 0 0121 6.5v11a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 17.5zm2.3-.5l6.7 5.2L18.7 6zM19 8.1l-6.4 5a1 1 0 01-1.2 0L5 8.1v9.4c0 .3.2.5.5.5h13c.3 0 .5-.2.5-.5z"/></svg>
+      <h3>Press "Triage inbox"</h3>
+      <p>The agent reads each email, sorts it into one of four folders and takes the action for that folder. Click any email to see what it decided and why.</p>
+    </div></div>
+  </section>
+</div>
+
+<div class="modal-bg" id="modal">
+  <form class="modal" id="compose-form">
+    <h3>Write a test email for the agent</h3>
+    <label>From<input name="from" value="sam@clientco.com" required maxlength="200"></label>
+    <label>Subject<input name="subject" required maxlength="300" placeholder="e.g. How do I cancel my subscription?"></label>
+    <label>Message<textarea name="body" required maxlength="5000" placeholder="Write anything: a question, a complaint, a sales pitch..."></textarea></label>
+    <div class="acts"><button class="btn" type="button" id="cancel">Cancel</button><button class="btn primary" type="submit">Send to inbox</button></div>
+  </form>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const CAT = {
+    routine: { label: "Auto-answered", head: "Answered from the FAQ" },
+    urgent: { label: "Urgent", head: "Flagged urgent for a person" },
+    needs_human: { label: "Needs review", head: "Draft waiting for your review" },
+    spam: { label: "Spam", head: "Archived as spam" },
+  };
+  const COLORS = ["#3b5bdb", "#0b7285", "#c2255c", "#5f3dc4", "#2b8a3e", "#e8590c", "#1971c2", "#862e9c"];
+  let emails = [];          // {id, from, subject, body, time, status, result, error}
+  let selected = null, filter = "all", running = false;
+
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function initials(addr) { const n = addr.split("@")[0].replace(/[^a-z]/gi, " ").trim(); return (n[0] || "?").toUpperCase(); }
+  function color(addr) { let h = 0; for (const c of addr) h = (h * 31 + c.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
+  function hhmm(d) { return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  function toast(msg, ms) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), ms || 3200); }
+
+  function avatar(addr, cls) { const a = el("div", cls || "av", initials(addr)); a.style.background = color(addr); return a; }
+
+  function stateLabel(m) {
+    if (m.status === "working") { const l = el("span", "label work"); l.append(el("span", "spin"), "Reading"); return l; }
+    if (m.status === "done") return el("span", "label " + m.result.category, CAT[m.result.category].label);
+    if (m.status === "error") return el("span", "label urgent", "Error");
+    return el("span", "label wait", "Not triaged");
+  }
+
+  function renderCounts() {
+    const counts = { all: emails.length, routine: 0, urgent: 0, needs_human: 0, spam: 0 };
+    emails.forEach((m) => { if (m.status === "done") counts[m.result.category] += 1; });
+    document.querySelectorAll("[data-n]").forEach((n) => {
+      const v = String(counts[n.dataset.n]);
+      if (n.textContent !== v) { n.textContent = v; const f = n.closest(".folder"); f.classList.remove("bump"); void f.offsetWidth; f.classList.add("bump"); }
+    });
+    const done = emails.filter((m) => m.status === "done").length;
+    $("list-sub").textContent = done ? done + " of " + emails.length + " triaged" : emails.length + " emails";
+    $("bar").style.width = emails.length ? (100 * done / emails.length) + "%" : "0";
+  }
+
+  function renderList() {
+    const rows = $("rows"); rows.innerHTML = "";
+    const shown = emails.filter((m) => filter === "all" || (m.status === "done" && m.result.category === filter));
+    $("list-title").textContent = filter === "all" ? "Inbox" : CAT[filter].label;
+    if (!shown.length) { const e = el("div", null, "Nothing here yet."); e.style.cssText = "padding:24px 18px;color:var(--muted)"; rows.appendChild(e); }
+    shown.forEach((m) => {
+      const r = el("div", "mail" + (m.id === selected ? " selected" : "") + (m.status === "done" ? " done" : "") + (m.status === "working" ? " working" : ""));
+      r.dataset.id = m.id;
+      r.append(avatar(m.from), el("div", "from", m.from), el("div", "time", m.time), el("div", "subj", m.subject), el("div", "snip", m.body));
+      const s = el("div", "state"); s.appendChild(stateLabel(m)); r.appendChild(s);
+      r.addEventListener("click", () => { selected = m.id; renderList(); renderReader(); });
+      rows.appendChild(r);
+    });
+    renderCounts();
+  }
+
+  function renderReader() {
+    const reader = $("reader");
+    const m = emails.find((x) => x.id === selected);
+    if (!m) return;
+    reader.innerHTML = "";
+    reader.appendChild(el("h1", "msg-subject", m.subject));
+    const meta = el("div", "msg-meta");
+    const who = el("div"); who.append(el("b", null, m.from), el("span", null, "to support@yourcompany.com · today " + m.time));
+    meta.append(avatar(m.from), who);
+    reader.appendChild(meta);
+    reader.appendChild(el("div", "msg-body", m.body));
+
+    if (m.status === "working") {
+      const t = el("div", "thinking"); t.append(el("span", "spin"), "The agent is reading this email and choosing a folder..."); reader.appendChild(t); return;
+    }
+    if (m.status === "error") { reader.appendChild(el("div", "err", m.error)); return; }
+    if (m.status !== "done") return;
+
+    const r = m.result;
+    const d = el("div", "decision " + r.category);
+    const head = el("div", "decision-head");
+    head.append(el("span", "label " + r.category, CAT[r.category].label), el("span", "t", CAT[r.category].head), el("span", "secs", r.seconds + "s"));
+    d.appendChild(head);
+    const dl = el("dl", "dl");
+    dl.append(el("dt", null, "Why"), el("dd", null, r.reasoning), el("dt", null, "Action taken"), el("dd", null, r.action));
+    d.appendChild(dl);
+    if (r.draft) {
+      const box = el("div", "draft");
+      const k = el("div", "k"); k.append(el("span", null, r.category === "routine" ? "Reply drafted from the FAQ" : "Draft written for a person to review"), el("span", null, "Re: " + m.subject));
+      box.append(k, el("div", "body", r.draft));
+      const acts = el("div", "acts");
+      const send = el("button", "btn primary", r.category === "routine" ? "Send reply" : "Approve and send");
+      const edit = el("button", "btn", "Edit draft");
+      [send, edit].forEach((b) => b.addEventListener("click", () => toast("Demo inbox: nothing is sent. Connect Gmail or Outlook to send for real.")));
+      acts.append(send, edit);
+      box.appendChild(acts);
+      d.appendChild(box);
+    }
+    reader.appendChild(d);
+  }
+
+  async function triageOne(m) {
+    m.status = "working"; selected = m.id; renderList(); renderReader();
+    const row = document.querySelector('.mail[data-id="' + m.id + '"]'); if (row) row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    try {
+      const res = await fetch("/api/triage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: m.id, from: m.from, subject: m.subject, body: m.body }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Request failed (" + res.status + ")");
+      m.status = "done"; m.result = data;
+    } catch (err) {
+      m.status = "error"; m.error = err.message;
+    }
+    renderList(); renderReader();
+  }
+
+  async function runAll() {
+    if (running) return;
+    const todo = emails.filter((m) => m.status !== "done");
+    if (!todo.length) { toast("Everything is already triaged."); return; }
+    running = true; $("run").disabled = true; $("compose").disabled = true;
+    filter = "all"; setActiveFolder();
+    const t0 = performance.now();
+    for (const m of todo) { await triageOne(m); await new Promise((r) => setTimeout(r, 900)); }
+    running = false; $("run").disabled = false; $("compose").disabled = false;
+    const c = { routine: 0, urgent: 0, needs_human: 0, spam: 0 };
+    emails.forEach((m) => { if (m.status === "done") c[m.result.category] += 1; });
+    const failed = emails.filter((m) => m.status === "error").length;
+    toast(todo.length + " emails triaged in " + Math.round((performance.now() - t0) / 1000) + "s: " + c.routine + " auto-answered, " + c.urgent + " urgent, " + c.needs_human + " for review, " + c.spam + " spam" + (failed ? ", " + failed + " failed" : ""), 6000);
+    document.body.dataset.finished = "1";
+  }
+
+  function setActiveFolder() { document.querySelectorAll(".folder").forEach((f) => f.classList.toggle("active", f.dataset.f === filter)); renderList(); }
+
+  $("folders").addEventListener("click", (e) => { const f = e.target.closest(".folder"); if (!f) return; filter = f.dataset.f; setActiveFolder(); });
+  $("run").addEventListener("click", runAll);
+  $("compose").addEventListener("click", () => { $("modal").classList.add("open"); $("compose-form").subject.focus(); });
+  $("cancel").addEventListener("click", () => $("modal").classList.remove("open"));
+  $("compose-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const m = { id: "TEST-" + Date.now(), from: f.from.value.trim(), subject: f.subject.value.trim(), body: f.body.value.trim(), time: hhmm(new Date()), status: "new" };
+    emails.unshift(m);
+    $("modal").classList.remove("open"); f.subject.value = ""; f.body.value = "";
+    filter = "all"; setActiveFolder();
+    running = true; $("run").disabled = true; $("compose").disabled = true;
+    await triageOne(m);
+    running = false; $("run").disabled = false; $("compose").disabled = false;
+  });
+
+  fetch("/api/info").then((r) => r.json()).then((d) => { $("model").textContent = d.model; }).catch(() => {});
+  fetch("/api/inbox").then((r) => r.json()).then((list) => {
+    const now = Date.now();
+    emails = list.map((m, i) => ({ ...m, time: hhmm(new Date(now - (i * 23 + 4) * 60000)), status: "new" }));
+    renderList();
+  }).catch(() => { $("list-sub").textContent = "Could not load the inbox"; });
+})();
+</script>
+</body>
+</html>
